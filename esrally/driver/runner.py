@@ -217,18 +217,22 @@ class BulkIndex(Runner):
         """
         detailed_results = params.get("detailed-results", False)
         bulk_params = {}
+        refresh_param = "false"
         if "pipeline" in params:
             bulk_params["pipeline"] = params["pipeline"]
-
+	
+        if "refresh" in params:
+            refresh_param = params["refresh"] 	
+		
         with_action_metadata = params["action_metadata_present"]
 
         if with_action_metadata:
             # only half of the lines are documents
             bulk_size = len(params["body"]) // 2
-            response = es.bulk(body=params["body"], params=bulk_params)
+            response = es.bulk(body=params["body"], params=bulk_params, refresh=refresh_param)
         else:
             bulk_size = len(params["body"])
-            response = es.bulk(body=params["body"], index=params["index"], doc_type=params["type"], params=bulk_params)
+            response = es.bulk(body=params["body"], index=params["index"], doc_type=params["type"], params=bulk_params, refresh=refresh_param)
 
         stats = self.detailed_stats(bulk_size, response) if detailed_results else self.simple_stats(bulk_size, response)
 

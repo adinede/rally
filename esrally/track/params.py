@@ -197,6 +197,8 @@ class BulkIndexParamSource(ParamSource):
                                            (id_conflicts, action_metadata))
 
         self.pipeline = params.get("pipeline", None)
+        self.refresh = params.get("refresh", "false")
+
         try:
             self.bulk_size = int(params["bulk-size"])
             if self.bulk_size <= 0:
@@ -231,7 +233,7 @@ class BulkIndexParamSource(ParamSource):
         logger.info("Choosing indices [%s] for partition [%d] of [%d]." %
                     (",".join([str(i) for i in chosen_indices]), partition_index, total_partitions))
         return PartitionBulkIndexParamSource(chosen_indices, partition_index, total_partitions, self.action_metadata,
-                                             self.batch_size, self.bulk_size, self.id_conflicts, self.pipeline)
+                                             self.batch_size, self.bulk_size, self.id_conflicts, self.pipeline, self.refresh)
 
     def params(self):
         raise exceptions.RallyError("Do not use a BulkIndexParamSource without partitioning")
@@ -242,7 +244,7 @@ class BulkIndexParamSource(ParamSource):
 
 class PartitionBulkIndexParamSource(ParamSource):
     def __init__(self, indices, partition_index, total_partitions, action_metadata, batch_size, bulk_size, id_conflicts=None,
-                 pipeline=None):
+                 pipeline=None, refresh=None):
         """
 
         :param indices: Specification of affected indices.
@@ -261,9 +263,10 @@ class PartitionBulkIndexParamSource(ParamSource):
         self.bulk_size = bulk_size
         self.id_conflicts = id_conflicts
         self.pipeline = pipeline
+        self.refresh = refresh
         self.action_metadata = action_metadata
         self.internal_params = bulk_data_based(total_partitions, partition_index, indices, action_metadata, batch_size,
-                                               bulk_size, id_conflicts, pipeline)
+                                               bulk_size, id_conflicts, pipeline,refresh)
 
     def partition(self, partition_index, total_partitions):
         raise exceptions.RallyError("Cannot partition a PartitionBulkIndexParamSource further")
@@ -358,7 +361,7 @@ def bounds(total_docs, client_index, num_clients, action_metadata):
     return offset, docs_per_client, lines_per_client
 
 
-def bulk_data_based(num_clients, client_index, indices, action_metadata, batch_size, bulk_size, id_conflicts, pipeline,
+def bulk_data_based(num_clients, client_index, indices, action_metadata, batch_size, bulk_size, id_conflicts, pipeline, refresh,
                     create_reader=create_default_reader):
     """
     Calculates the necessary schedule for bulk operations.
@@ -401,6 +404,8 @@ def bulk_data_based(num_clients, client_index, indices, action_metadata, batch_s
             }
             if pipeline:
                 params["pipeline"] = pipeline
+            if refresh:
+                params["refresh"] = refresh
             yield params
 
 
